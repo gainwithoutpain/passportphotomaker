@@ -1,0 +1,21 @@
+GWP-AUTHENTICATION-KEY
+====================
+
+License ID: GWP-2026-PRO-001
+Product: GWP Passport Photo Editor Pro
+Version: 3.0.0
+Valid: Lifetime
+
+API_KEY: w7KUr2YavCv16su3crPjTauK
+API_SERVICE: remove.bg
+
+Authorized User: GWP Automation Client
+Contact: gwpautomation@gmail.com
+
+This key file authenticates the use of GWP Passport Photo Editor.
+Do not distribute or share this key file.
+
+Generated: 2026
+Signature: GWP-AUTH-SHA256-VERIFIED
+
+END OF KEY FILE

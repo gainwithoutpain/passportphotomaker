@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GWP Automation - Professional Passport Photo Editor Pro</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { primary: '#3b82f6', secondary: '#64748b', accent: '#8b5cf6' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.18); }
+        .glass-dark { background: rgba(17, 24, 39, 0.95); backdrop-filter: blur(10px); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .photo-animate { animation: fadeIn 0.3s ease-out; }
+        .drop-zone { border: 3px dashed #cbd5e1; transition: all 0.3s ease; }
+        .drop-zone.dragover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); transform: scale(1.02); }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; margin-top: -6px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .contact-icon { transition: all 0.3s ease; }
+        .contact-icon:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-enter { animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .toast { transform: translateX(100%); transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(0); }
+        .cropper-container { max-height: 70vh; }
+        .photo-selected { box-shadow: 0 0 0 4px #3b82f6, 0 10px 25px rgba(59, 130, 246, 0.3); transform: scale(1.05); }
+        .license-input { letter-spacing: 0.2em; text-transform: uppercase; }
+        .tool-btn { transition: all 0.2s; }
+        .tool-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .tool-btn.active { background: #3b82f6; color: white; }
+        .color-picker-wrapper { position: relative; overflow: hidden; }
+        .color-picker-wrapper input[type="color"] { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; cursor: pointer; }
+    </style>
+<base target="_blank">
+</head>
+<body class="overflow-hidden">
+
+    <!-- Authentication Overlay -->
+    <div id="authOverlay" class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"></div>
+        <div class="relative h-full flex items-center justify-center p-4">
+            <div class="glass-dark rounded-3xl p-8 max-w-2xl w-full text-center modal-enter">
+                <div class="mb-6">
+                    <i class="fas fa-lock text-6xl text-red-400 mb-4"></i>
+                    <h1 class="text-3xl font-bold text-white mb-2">License Verification Required</h1>
+                    <p class="text-gray-300 mb-2">Please upload your key file or enter license key</p>
+                </div>
+
+                <!-- Key File Upload -->
+                <div class="bg-gray-800/50 rounded-xl p-6 mb-6 border border-gray-700">
+                    <h3 class="text-white font-semibold mb-4 flex items-center justify-center gap-2">
+                        <i class="fas fa-key text-yellow-500"></i>
+                        Option 1: Upload Key File
+                    </h3>
+                    <div id="keyDropZone" class="drop-zone rounded-xl p-6 border-2 border-dashed border-gray-600 hover:border-blue-500 cursor-pointer transition-colors">
+                        <i class="fas fa-file-upload text-4xl text-gray-400 mb-3"></i>
+                        <p class="text-gray-400 text-sm mb-2">Drag & drop key001.gwp here</p>
+                        <p class="text-gray-500 text-xs mb-3">or</p>
+                        <input type="file" id="keyFileInput" accept=".gwp" class="hidden">
+                        <button onclick="document.getElementById('keyFileInput').click()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors">
+                            Select key001.gwp
+                        </button>
+                    </div>
+                    <p id="keyFileStatus" class="mt-3 text-sm"></p>
+                </div>
+
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="flex-1 h-px bg-gray-700"></div>
+                    <span class="text-gray-500 text-sm">OR</span>
+                    <div class="flex-1 h-px bg-gray-700"></div>
+                </div>
+
+                <!-- Manual Key Entry -->
+                <div class="bg-gray-800/50 rounded-xl p-6 mb-6 border border-gray-700">
+                    <h3 class="text-white font-semibold mb-4 flex items-center justify-center gap-2">
+                        <i class="fas fa-keyboard text-green-500"></i>
+                        Option 2: Enter License Key
+                    </h3>
+                    <div class="flex gap-2 justify-center mb-3">
+                        <input type="text" id="licenseKey1" maxlength="4" class="license-input w-20 px-3 py-3 bg-gray-900 border border-gray-600 rounded-lg text-center text-white font-mono text-lg focus:border-blue-500 focus:outline-none" placeholder="GWP">
+                        <span class="text-gray-500 self-center">-</span>
+                        <input type="text" id="licenseKey2" maxlength="4" class="license-input w-20 px-3 py-3 bg-gray-900 border border-gray-600 rounded-lg text-center text-white font-mono text-lg focus:border-blue-500 focus:outline-none" placeholder="2026">
+                        <span class="text-gray-500 self-center">-</span>
+                        <input type="text" id="licenseKey3" maxlength="4" class="license-input w-20 px-3 py-3 bg-gray-900 border border-gray-600 rounded-lg text-center text-white font-mono text-lg focus:border-blue-500 focus:outline-none" placeholder="PRO">
+                        <span class="text-gray-500 self-center">-</span>
+                        <input type="text" id="licenseKey4" maxlength="3" class="license-input w-16 px-3 py-3 bg-gray-900 border border-gray-600 rounded-lg text-center text-white font-mono text-lg focus:border-blue-500 focus:outline-none" placeholder="001">
+                    </div>
+                    <button onclick="verifyLicenseKey()" class="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors">
+                        Verify Key
+                    </button>
+                    <p id="licenseStatus" class="mt-3 text-sm"></p>
+                </div>
+
+                <div class="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-6">
+                    <p class="text-red-200 text-sm">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        Don't have a license key? Contact us below:
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <a href="https://wa.me/880151834473" target="_blank" class="contact-icon bg-green-600 hover:bg-green-500 rounded-xl p-4 text-white">
+                        <i class="fab fa-whatsapp text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">WhatsApp</p>
+                        <p class="text-xs opacity-80">01518344736</p>
+                    </a>
+                    <a href="im:0151834473" class="contact-icon bg-blue-600 hover:bg-blue-500 rounded-xl p-4 text-white">
+                        <i class="fas fa-comment-dots text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">IMO</p>
+                        <p class="text-xs opacity-80">01518344736</p>
+                    </a>
+                    <a href="mailto:gwpautomation@gmail.com" class="contact-icon bg-red-600 hover:bg-red-500 rounded-xl p-4 text-white">
+                        <i class="fas fa-envelope text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">Email</p>
+                        <p class="text-xs opacity-80">gwpautomation@gmail.com</p>
+                    </a>
+                    <a href="https://facebook.com/gwpautomation" target="_blank" class="contact-icon bg-blue-800 hover:bg-blue-700 rounded-xl p-4 text-white">
+                        <i class="fab fa-facebook-f text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">Facebook</p>
+                        <p class="text-xs opacity-80">@gwpautomation</p>
+                    </a>
+                </div>
+
+                <a href="https://github.com/gainwithoutpain" target="_blank" class="inline-flex items-center gap-3 bg-gray-800 hover:bg-gray-700 rounded-xl px-6 py-3 text-white transition-colors">
+                    <i class="fab fa-github text-2xl"></i>
+                    <span class="font-medium">github.com/gainwithoutpain</span>
+                </a>
+
+                <div class="mt-6 text-gray-400 text-sm">
+                    <p>© 2026 GWP Automation. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="h-screen flex flex-col hidden">
+        <!-- Header -->
+        <header class="glass border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+            <<div class="flex items-center gap-3">
+			<div class="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
+				<img
+            src="https://avatars.githubusercontent.com/u/41312645?s=400&u=44b9adc7360f59bf6b1b5dd61bcaafbfb0e92164&v=4"
+            alt="Avatar"
+            class="w-full h-full object-cover"
+				/>
+			</div>
+		<div>
+        <h1 class="text-xl font-bold text-gray-800">GWP Automation</h1>
+        <p class="text-xs text-gray-500">Professional Passport Photo Editor</p>
+		</div>
+			</div>
+
+            <div class="flex items-center gap-3">
+                <span id="apiStatus" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium hidden">
+                    <i class="fas fa-check-circle mr-1"></i>API Connected
+                </span>
+                <button onclick="showShortcuts()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm">
+                    <i class="fas fa-keyboard mr-2"></i>Shortcuts
+                </button>
+                <div class="h-8 w-px bg-gray-300"></div>
+                <span id="photoCount" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">0 photos</span>
+                <button onclick="logout()" class="px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg text-sm transition-colors" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Sidebar Controls -->
+            <aside class="w-80 glass border-r border-gray-200 flex flex-col overflow-hidden">
+                <div class="flex-1 overflow-y-auto p-4 space-y-6">
+
+                    <!-- Upload Section -->
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
+                        <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <i class="fas fa-cloud-upload-alt text-blue-500"></i>
+                            Upload Photos
+                        </h3>
+                        <div id="dropZone" class="drop-zone rounded-xl p-6 text-center cursor-pointer bg-white/50">
+                            <i class="fas fa-images text-4xl text-gray-400 mb-3"></i>
+                            <p class="text-sm text-gray-600 mb-2">Drag & drop or click to upload</p>
+                            <input type="file" id="fileInput" multiple accept="image/*" class="hidden">
+                            <button onclick="document.getElementById('fileInput').click()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors">
+                                Choose Files
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Crop & Transform -->
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-crop-alt text-blue-500"></i>
+                            Crop & Transform
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="openCropModal()" id="btnCrop" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-crop text-blue-500 mb-1"></i>
+                                <p class="text-xs font-medium">Crop</p>
+                            </button>
+                            <button onclick="rotatePhoto(-90)" id="btnRotateLeft" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-undo text-purple-500 mb-1"></i>
+                                <p class="text-xs font-medium">Left</p>
+                            </button>
+                            <button onclick="rotatePhoto(90)" id="btnRotateRight" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-redo text-purple-500 mb-1"></i>
+                                <p class="text-xs font-medium">Right</p>
+                            </button>
+                            <button onclick="flipPhoto('horizontal')" id="btnFlipH" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-arrows-alt-h text-orange-500 mb-1"></i>
+                                <p class="text-xs font-medium">Flip H</p>
+                            </button>
+                            <button onclick="flipPhoto('vertical')" id="btnFlipV" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-arrows-alt-v text-orange-500 mb-1"></i>
+                                <p class="text-xs font-medium">Flip V</p>
+                            </button>
+                            <button onclick="openResizeModal()" id="btnResize" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-expand text-green-500 mb-1"></i>
+                                <p class="text-xs font-medium">Resize</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-bolt text-yellow-500"></i>
+                            Quick Actions
+                        </h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="duplicatePhoto()" id="btnDuplicate" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-copy text-blue-500 mb-1"></i>
+                                <p class="text-xs font-medium">Duplicate</p>
+                            </button>
+                            <button onclick="deletePhoto()" id="btnDelete" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-trash text-red-500 mb-1"></i>
+                                <p class="text-xs font-medium">Delete</p>
+                            </button>
+                            <button onclick="undo()" id="btnUndo" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-undo-alt text-gray-500 mb-1"></i>
+                                <p class="text-xs font-medium">Undo</p>
+                            </button>
+                            <button onclick="resetPhoto()" id="btnReset" disabled class="tool-btn p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-history text-gray-500 mb-1"></i>
+                                <p class="text-xs font-medium">Reset</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Background Tools -->
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-magic text-purple-500"></i>
+                            Background
+                        </h3>
+                        <div class="space-y-2">
+                            <button onclick="openBgRemove()" id="btnBgRemove" disabled class="w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                <i class="fas fa-wand-magic-sparkles"></i>
+                                AI Background Removal
+                            </button>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="addBackground('#ffffff')" id="btnWhiteBg" disabled class="p-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-colors disabled:opacity-50">
+                                    <div class="w-full h-6 bg-white border border-gray-300 rounded mb-1"></div>
+                                    <span class="text-xs">White</span>
+                                </button>
+                                <button onclick="addBackground('#3b82f6')" id="btnBlueBg" disabled class="p-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-colors disabled:opacity-50">
+                                    <div class="w-full h-6 bg-blue-500 rounded mb-1"></div>
+                                    <span class="text-xs">Blue</span>
+                                </button>
+                                <button onclick="addBackground('#dc2626')" id="btnRedBg" disabled class="p-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-colors disabled:opacity-50">
+                                    <div class="w-full h-6 bg-red-600 rounded mb-1"></div>
+                                    <span class="text-xs">Red</span>
+                                </button>
+                                <button onclick="addBackground('#10b981')" id="btnGreenBg" disabled class="p-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-colors disabled:opacity-50">
+                                    <div class="w-full h-6 bg-green-500 rounded mb-1"></div>
+                                    <span class="text-xs">Green</span>
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-2 mt-2">
+                                <input type="color" id="customBgColor" value="#ffffff" class="w-10 h-10 rounded cursor-pointer" onchange="addBackground(this.value)">
+                                <span class="text-sm text-gray-600">Custom Color</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Adjustments -->
+                    <div class="space-y-4">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-sliders-h text-green-500"></i>
+                            Adjustments
+                        </h3>
+
+                        <!-- Brightness -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-sun mr-1"></i>Brightness</span>
+                                <span id="brightnessVal" class="text-gray-800 font-medium">100%</span>
+                            </div>
+                            <input type="range" id="brightness" min="0" max="200" value="100" oninput="updateAdjustment('brightness', this.value)">
+                        </div>
+
+                        <!-- Contrast -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-adjust mr-1"></i>Contrast</span>
+                                <span id="contrastVal" class="text-gray-800 font-medium">100%</span>
+                            </div>
+                            <input type="range" id="contrast" min="0" max="200" value="100" oninput="updateAdjustment('contrast', this.value)">
+                        </div>
+
+                        <!-- Saturation -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-palette mr-1"></i>Saturation</span>
+                                <span id="saturationVal" class="text-gray-800 font-medium">100%</span>
+                            </div>
+                            <input type="range" id="saturation" min="0" max="200" value="100" oninput="updateAdjustment('saturation', this.value)">
+                        </div>
+
+                        <!-- Blur -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-tint mr-1"></i>Blur</span>
+                                <span id="blurVal" class="text-gray-800 font-medium">0px</span>
+                            </div>
+                            <input type="range" id="blur" min="0" max="10" value="0" step="0.5" oninput="updateAdjustment('blur', this.value)">
+                        </div>
+
+                        <!-- Hue Rotate -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-sync mr-1"></i>Hue</span>
+                                <span id="hueVal" class="text-gray-800 font-medium">0°</span>
+                            </div>
+                            <input type="range" id="hue" min="0" max="360" value="0" oninput="updateAdjustment('hue', this.value)">
+                        </div>
+
+                        <!-- Sepia -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-coffee mr-1"></i>Sepia</span>
+                                <span id="sepiaVal" class="text-gray-800 font-medium">0%</span>
+                            </div>
+                            <input type="range" id="sepia" min="0" max="100" value="0" oninput="updateAdjustment('sepia', this.value)">
+                        </div>
+
+                        <!-- Grayscale -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600"><i class="fas fa-moon mr-1"></i>Grayscale</span>
+                                <span id="grayscaleVal" class="text-gray-800 font-medium">0%</span>
+                            </div>
+                            <input type="range" id="grayscale" min="0" max="100" value="0" oninput="updateAdjustment('grayscale', this.value)">
+                        </div>
+                    </div>
+
+                    <!-- Border Settings -->
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-border-all text-orange-500"></i>
+                            Border Settings
+                        </h3>
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-600">Border Width</span>
+                                <span id="borderVal" class="text-gray-800 font-medium">1px</span>
+                            </div>
+                            <input type="range" id="borderWidth" min="0" max="50" value="1" oninput="updateBorder(this.value)">
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="setBorderColor('#000000')" class="w-8 h-8 rounded-full bg-black border-2 border-gray-300 hover:scale-110 transition-transform" title="Black"></button>
+                            <button onclick="setBorderColor('#3b82f6')" class="w-8 h-8 rounded-full bg-blue-500 border-2 border-gray-300 hover:scale-110 transition-transform" title="Blue"></button>
+                            <button onclick="setBorderColor('#dc2626')" class="w-8 h-8 rounded-full bg-red-600 border-2 border-gray-300 hover:scale-110 transition-transform" title="Red"></button>
+                            <button onclick="setBorderColor('#ffffff')" class="w-8 h-8 rounded-full bg-white border-2 border-gray-300 hover:scale-110 transition-transform" title="White"></button>
+                            <button onclick="setBorderColor('#fbbf24')" class="w-8 h-8 rounded-full bg-amber-400 border-2 border-gray-300 hover:scale-110 transition-transform" title="Gold"></button>
+                            <input type="color" id="customBorderColor" value="#000000" class="w-8 h-8 rounded-full cursor-pointer" onchange="setBorderColor(this.value)">
+                        </div>
+                    </div>
+
+                    <!-- PDF Settings -->
+                    <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-file-pdf text-red-500"></i>
+                            PDF Export
+                        </h3>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="text-xs text-gray-600 mb-1 block">Photo Size</label>
+                                <select id="photoSize" class="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                                    <option value="35x45">35 × 45 mm (Standard Passport)</option>
+                                    <option value="35x35">35 × 35 mm (Square)</option>
+                                    <option value="40x50">40 × 50 mm (Large)</option>
+                                    <option value="45x55">45 × 55 mm (Extra Large)</option>
+                                    <option value="50x70">50 × 70 mm (Visa)</option>
+                                    <option value="25x35">25 × 35 mm (ID Card)</option>
+                                    <option value="30x40">30 × 40 mm (Small)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600 mb-1 block">Paper Size</label>
+                                <select id="paperSize" class="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                                    <option value="A4">A4 (210×297mm)</option>
+                                    <option value="A5">A5 (148×210mm)</option>
+                                    <option value="A3">A3 (297×420mm)</option>
+                                    <option value="Letter">Letter (8.5×11")</option>
+                                    <option value="4x6">4×6 Photo Paper</option>
+                                    <option value="5x7">5×7 Photo Paper</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600 mb-1 block">Layout</label>
+                                <select id="layoutMode" class="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                                    <option value="grid">Auto Grid</option>
+                                    <option value="single">Single per Page</option>
+                                    <option value="strip">Photo Strip</option>
+                                    <option value="2x2">2 × 2 Grid</option>
+                                    <option value="3x3">3 × 3 Grid</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600 mb-1 block">DPI Quality</label>
+                                <select id="dpiQuality" class="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                                    <option value="150">Standard (150 DPI)</option>
+                                    <option value="300" selected>High (300 DPI)</option>
+                                    <option value="600">Ultra (600 DPI)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Settings (Auto-filled from key file) -->
+                    <div class="space-y-2 bg-blue-50 rounded-xl p-4 border border-blue-100">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-robot text-blue-500"></i>
+                            AI API Settings
+                        </h3>
+                        <div class="relative">
+                            <input type="password" id="removeBgKey" placeholder="w7KUr2YavCv16su3crPjTauK" value="w7KUr2YavCv16su3crPjTauK" class="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 pr-10">
+                            <button onclick="toggleApiVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye" id="apiEyeIcon"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500">Loaded from key file or get free key from <a href="https://www.remove.bg/api" target="_blank" class="text-blue-500 hover:underline">remove.bg</a></p>
+                    </div>
+
+                </div>
+
+                <!-- Generate Button -->
+                <div class="p-4 border-t border-gray-200 bg-white">
+                    <button onclick="generatePDF()" id="btnGenerate" disabled class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <i class="fas fa-file-download"></i>
+                        Generate PDF
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Canvas Area -->
+            <main class="flex-1 bg-gray-100 overflow-auto p-6">
+                <div id="canvasArea" class="min-h-full">
+                    <!-- Empty State -->
+                    <div id="emptyState" class="h-full flex flex-col items-center justify-center text-gray-400">
+                        <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                            <i class="fas fa-images text-5xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-600 mb-2">No Photos Yet</h2>
+                        <p class="text-center max-w-md">Upload photos to get started. You can drag and drop or use the upload button in the sidebar.</p>
+                        <div class="mt-6 flex gap-4">
+                            <div class="text-center">
+                                <i class="fas fa-mouse-pointer text-2xl mb-2"></i>
+                                <p class="text-xs">Click to select</p>
+                            </div>
+                            <div class="text-center">
+                                <i class="fas fa-hand-pointer text-2xl mb-2"></i>
+                                <p class="text-xs">Double-click to crop</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo Grid -->
+                    <div id="photoGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 hidden"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Advanced Crop Modal -->
+    <div id="cropModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass rounded-2xl max-w-6xl w-full max-h-[95vh] flex flex-col modal-enter">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-crop-alt text-blue-500"></i>
+                    Advanced Crop Tool
+                </h3>
+                <button onclick="closeCropModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <i class="fas fa-times text-gray-500"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 p-4 overflow-hidden flex gap-4">
+                <!-- Crop Preview -->
+                <div class="flex-1 bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center">
+                    <div class="cropper-container w-full h-full">
+                        <img id="cropImage" src="" alt="Crop" class="max-w-full max-h-full">
+                    </div>
+                </div>
+
+                <!-- Crop Controls -->
+                <div class="w-64 space-y-4 overflow-y-auto">
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-semibold text-gray-800 mb-3">Aspect Ratio</h4>
+                        <div class="space-y-2">
+                            <button onclick="setCropAspect(NaN)" class="w-full p-2 text-left rounded-lg hover:bg-white transition-colors text-sm">Free</button>
+                            <button onclick="setCropAspect(0.778)" class="w-full p-2 text-left rounded-lg hover:bg-white transition-colors text-sm">Passport (35×45)</button>
+                            <button onclick="setCropAspect(1)" class="w-full p-2 text-left rounded-lg hover:bg-white transition-colors text-sm">Square (1:1)</button>
+                            <button onclick="setCropAspect(0.75)" class="w-full p-2 text-left rounded-lg hover:bg-white transition-colors text-sm">Portrait (3:4)</button>
+                            <button onclick="setCropAspect(1.333)" class="w-full p-2 text-left rounded-lg hover:bg-white transition-colors text-sm">Landscape (4:3)</button>
+                            <button onclick="setCropAspect(0.625)" class="w-full p-2 text-left rounded-lg hover:bg-white transition-colors text-sm">Photo (5:8)</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-semibold text-gray-800 mb-3">Transform</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="cropper.rotate(-90)" class="p-2 bg-white rounded-lg hover:shadow transition-all">
+                                <i class="fas fa-undo"></i> -90°
+                            </button>
+                            <button onclick="cropper.rotate(90)" class="p-2 bg-white rounded-lg hover:shadow transition-all">
+                                <i class="fas fa-redo"></i> +90°
+                            </button>
+                            <button onclick="cropper.scaleX(-cropper.getData().scaleX || -1)" class="p-2 bg-white rounded-lg hover:shadow transition-all">
+                                <i class="fas fa-arrows-alt-h"></i> Flip H
+                            </button>
+                            <button onclick="cropper.scaleY(-cropper.getData().scaleY || -1)" class="p-2 bg-white rounded-lg hover:shadow transition-all">
+                                <i class="fas fa-arrows-alt-v"></i> Flip V
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-semibold text-gray-800 mb-3">Zoom</h4>
+                        <input type="range" id="cropZoom" min="0.1" max="3" step="0.1" value="1" oninput="cropper.zoomTo(this.value)" class="w-full">
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="cropper.zoom(-0.1)" class="flex-1 p-2 bg-white rounded-lg hover:shadow">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button onclick="cropper.zoom(0.1)" class="flex-1 p-2 bg-white rounded-lg hover:shadow">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-semibold text-gray-800 mb-3">Move</h4>
+                        <div class="grid grid-cols-3 gap-1 w-24 mx-auto">
+                            <div></div>
+                            <button onclick="cropper.move(0, -10)" class="p-2 bg-white rounded-lg hover:shadow"><i class="fas fa-chevron-up"></i></button>
+                            <div></div>
+                            <button onclick="cropper.move(-10, 0)" class="p-2 bg-white rounded-lg hover:shadow"><i class="fas fa-chevron-left"></i></button>
+                            <button onclick="cropper.reset()" class="p-2 bg-blue-500 text-white rounded-lg hover:shadow"><i class="fas fa-sync-alt"></i></button>
+                            <button onclick="cropper.move(10, 0)" class="p-2 bg-white rounded-lg hover:shadow"><i class="fas fa-chevron-right"></i></button>
+                            <div></div>
+                            <button onclick="cropper.move(0, 10)" class="p-2 bg-white rounded-lg hover:shadow"><i class="fas fa-chevron-down"></i></button>
+                            <div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-gray-200 flex justify-between">
+                <button onclick="cropper.reset()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fas fa-undo mr-2"></i>Reset
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeCropModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+                    <button onclick="applyCrop()" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fas fa-check"></i>
+                        Apply Crop
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resize Modal -->
+    <div id="resizeModal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass rounded-2xl max-w-md w-full p-6 modal-enter">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fas fa-expand text-green-500"></i>
+                Resize Image
+            </h3>
+            <div class="space-y-4">
+                <div class="flex items-center gap-4">
+                    <label class="text-sm text-gray-600 w-20">Width:</label>
+                    <input type="number" id="resizeWidth" class="flex-1 p-2 bg-white border border-gray-200 rounded-lg" placeholder="Width in px">
+                    <span class="text-sm text-gray-500">px</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <label class="text-sm text-gray-600 w-20">Height:</label>
+                    <input type="number" id="resizeHeight" class="flex-1 p-2 bg-white border border-gray-200 rounded-lg" placeholder="Height in px">
+                    <span class="text-sm text-gray-500">px</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="maintainAspect" checked class="w-4 h-4">
+                    <label for="maintainAspect" class="text-sm text-gray-600">Maintain aspect ratio</label>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">Original size: <span id="originalSize">-</span></p>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button onclick="closeResizeModal()" class="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+                <button onclick="applyResize()" class="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">Resize</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Remove Modal -->
+    <div id="bgModal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass rounded-2xl max-w-md w-full p-6 modal-enter">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fas fa-wand-magic-sparkles text-purple-500"></i>
+                AI Background Removal
+            </h3>
+            <p class="text-gray-600 text-sm mb-4">Powered by remove.bg API</p>
+            <div class="space-y-3">
+                <label class="text-sm text-gray-600">Select Background Color:</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="removeBg('transparent')" class="p-3 bg-gray-100 border-2 border-gray-300 rounded-xl hover:border-purple-400 transition-colors">
+                        <div class="w-full h-8 bg-transparent border border-gray-400 rounded mb-2" style="background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px;"></div>
+                        <span class="text-xs">None</span>
+                    </button>
+                    <button onclick="removeBg('#ffffff')" class="p-3 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-400 transition-colors">
+                        <div class="w-full h-8 bg-white border border-gray-300 rounded mb-2"></div>
+                        <span class="text-xs">White</span>
+                    </button>
+                    <button onclick="removeBg('#3b82f6')" class="p-3 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-400 transition-colors">
+                        <div class="w-full h-8 bg-blue-500 rounded mb-2"></div>
+                        <span class="text-xs">Blue</span>
+                    </button>
+                    <button onclick="removeBg('#dc2626')" class="p-3 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-400 transition-colors">
+                        <div class="w-full h-8 bg-red-600 rounded mb-2"></div>
+                        <span class="text-xs">Red</span>
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <input type="color" id="bgRemoveColor" value="#ffffff" class="w-full h-10 rounded cursor-pointer" onchange="removeBg(this.value)">
+                    <p class="text-xs text-gray-500 mt-1">Custom color</p>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeBgModal()" class="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div id="shortcutsModal" class="fixed inset-0 z-40 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass rounded-2xl max-w-lg w-full p-6 modal-enter">
+            <h3 class="font-semibold text-gray-800 mb-4">Keyboard Shortcuts</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Upload Photos</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + U</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Crop Tool</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + C</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Delete Selected</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Delete</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Duplicate</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + D</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Rotate Left</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + ←</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Rotate Right</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + →</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Undo</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + Z</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Reset</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + R</kbd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Generate PDF</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl + P</kbd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <span class="text-gray-600">Next Photo</span>
+                    <kbd class="px-2 py-1 bg-gray-100 rounded">Tab</kbd>
+                </div>
+            </div>
+            <button onclick="closeShortcuts()" class="mt-4 w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">Close</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <script>
+        // Global Variables
+        let photos = [];
+        let originals = [];
+        let history = [];
+        let selectedIndex = -1;
+        let cropper = null;
+        let borderColor = '#000000';
+        let isAuthenticated = localStorage.getItem('gwp_authenticated') === 'true';
+        let apiKeyFromFile = '';
+
+        // Photo editing state
+        let currentFilters = { 
+            brightness: 100, contrast: 100, saturation: 100, 
+            blur: 0, hue: 0, sepia: 0, grayscale: 0 
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isAuthenticated) {
+                showMainApp();
+            } else {
+                setupAuthEvents();
+            }
+            setupEventListeners();
+            setupDragDrop();
+            setupKeyDropZone();
+        });
+
+        // ==================== AUTHENTICATION ====================
+
+        function setupAuthEvents() {
+            document.getElementById('keyFileInput').addEventListener('change', handleKeyFileSelect);
+
+            const keyInputs = ['licenseKey1', 'licenseKey2', 'licenseKey3', 'licenseKey4'];
+            keyInputs.forEach((id, index) => {
+                const input = document.getElementById(id);
+                input.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                    if (e.target.value.length === parseInt(e.target.getAttribute('maxlength'))) {
+                        if (index < keyInputs.length - 1) {
+                            document.getElementById(keyInputs[index + 1]).focus();
+                        }
+                    }
+                });
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                        document.getElementById(keyInputs[index - 1]).focus();
+                    }
+                    if (e.key === 'Enter') verifyLicenseKey();
+                });
+            });
+        }
+
+        function setupKeyDropZone() {
+            const dropZone = document.getElementById('keyDropZone');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('border-blue-500'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('border-blue-500'), false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const file = e.dataTransfer.files[0];
+                if (file && file.name === 'key001.gwp') {
+                    readKeyFile(file);
+                } else {
+                    showKeyStatus('Please drop key001.gwp file', 'error');
+                }
+            });
+        }
+
+        function handleKeyFileSelect(e) {
+            const file = e.target.files[0];
+            if (file && file.name === 'key001.gwp') {
+                readKeyFile(file);
+            } else {
+                showKeyStatus('Please select key001.gwp file', 'error');
+            }
+        }
+
+        function readKeyFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                if (validateKeyContent(content)) {
+                    // Extract API key from file
+                    const apiMatch = content.match(/API_KEY:\s*(\w+)/);
+                    if (apiMatch) {
+                        apiKeyFromFile = apiMatch[1];
+                        localStorage.setItem('gwp_api_key', apiKeyFromFile);
+                    }
+                    showKeyStatus('Key file valid! Unlocking...', 'success');
+                    authenticate();
+                } else {
+                    showKeyStatus('Invalid key file content', 'error');
+                }
+            };
+            reader.onerror = () => showKeyStatus('Error reading key file', 'error');
+            reader.readAsText(file);
+        }
+
+        function validateKeyContent(content) {
+            return content.includes('GWP-AUTHENTICATION-KEY') || 
+                   content.includes('GWP') || 
+                   content.includes('License') ||
+                   content.includes('GWP-2026-xyz-000');
+        }
+
+        function verifyLicenseKey() {
+            const key1 = document.getElementById('licenseKey1').value.toUpperCase();
+            const key2 = document.getElementById('licenseKey2').value.toUpperCase();
+            const key3 = document.getElementById('licenseKey3').value.toUpperCase();
+            const key4 = document.getElementById('licenseKey4').value.toUpperCase();
+
+            if (key1 === 'GWP' && key2 === '2026' && key3 === 'PRO' && key4 === '001') {
+                showLicenseStatus('License key valid! Unlocking...', 'success');
+                authenticate();
+            } else {
+                showLicenseStatus('Invalid license key. Try: GWP-2026-PRO-001', 'error');
+            }
+        }
+
+        function showKeyStatus(message, type) {
+            const statusEl = document.getElementById('keyFileStatus');
+            statusEl.textContent = message;
+            statusEl.className = `mt-3 text-sm ${type === 'success' ? 'text-green-400' : 'text-red-400'}`;
+        }
+
+        function showLicenseStatus(message, type) {
+            const statusEl = document.getElementById('licenseStatus');
+            statusEl.textContent = message;
+            statusEl.className = `mt-3 text-sm ${type === 'success' ? 'text-green-400' : 'text-red-400'}`;
+        }
+
+        function authenticate() {
+            localStorage.setItem('gwp_authenticated', 'true');
+            isAuthenticated = true;
+            setTimeout(() => showMainApp(), 1000);
+        }
+
+        function showMainApp() {
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+
+            // Load API key from storage or key file
+            const savedApiKey = localStorage.getItem('gwp_api_key');
+            if (savedApiKey) {
+                document.getElementById('removeBgKey').value = savedApiKey;
+                document.getElementById('apiStatus').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('gwp_authenticated');
+            localStorage.removeItem('gwp_api_key');
+            location.reload();
+        }
+
+        function toggleApiVisibility() {
+            const input = document.getElementById('removeBgKey');
+            const icon = document.getElementById('apiEyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        // ==================== EVENT LISTENERS ====================
+
+        function setupEventListeners() {
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key.toLowerCase()) {
+                        case 'u': e.preventDefault(); document.getElementById('fileInput').click(); break;
+                        case 'd': e.preventDefault(); duplicatePhoto(); break;
+                        case 'c': e.preventDefault(); openCropModal(); break;
+                        case 'p': e.preventDefault(); generatePDF(); break;
+                        case 'z': e.preventDefault(); undo(); break;
+                        case 'r': e.preventDefault(); resetPhoto(); break;
+                    }
+                } else {
+                    switch(e.key) {
+                        case 'Delete': deletePhoto(); break;
+                        case 'Tab': e.preventDefault(); navigatePhoto(1); break;
+                    }
+                }
+            });
+        }
+
+        function setupDragDrop() {
+            const dropZone = document.getElementById('dropZone');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+            });
+
+            dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files), false);
+        }
+
+        function handleFileSelect(e) {
+            handleFiles(e.target.files);
+        }
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = (e) => addPhoto(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ==================== PHOTO MANAGEMENT ====================
+
+        function addPhoto(src) {
+            photos.push({
+                src: src,
+                originalSrc: src,
+                borderWidth: parseInt(document.getElementById('borderWidth').value),
+                borderColor: borderColor,
+                filters: { ...currentFilters },
+                width: 0,
+                height: 0
+            });
+            originals.push(src);
+            history.push([]);
+
+            // Get image dimensions
+            const img = new Image();
+            img.onload = () => {
+                photos[photos.length - 1].width = img.width;
+                photos[photos.length - 1].height = img.height;
+            };
+            img.src = src;
+
+            selectedIndex = photos.length - 1;
+            renderPhotos();
+            showToast('Photo added successfully', 'success');
+        }
+
+        function renderPhotos() {
+            const grid = document.getElementById('photoGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            if (photos.length === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                updateButtons(false);
+                document.getElementById('photoCount').textContent = '0 photos';
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            updateButtons(true);
+            document.getElementById('photoCount').textContent = `${photos.length} photo${photos.length > 1 ? 's' : ''}`;
+
+            grid.innerHTML = photos.map((photo, index) => {
+                const filterString = `brightness(${photo.filters.brightness}%) contrast(${photo.filters.contrast}%) saturate(${photo.filters.saturation}%) blur(${photo.filters.blur}px) hue-rotate(${photo.filters.hue}deg) sepia(${photo.filters.sepia}%) grayscale(${photo.filters.grayscale}%)`;
+
+                return `
+                <div class="photo-animate relative group cursor-pointer ${index === selectedIndex ? 'photo-selected' : ''}" 
+                     onclick="selectPhoto(${index})" ondblclick="openCropModal(${index})">
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-200 hover:shadow-xl">
+                        <div class="aspect-[3/4] relative">
+                            <img src="${photo.src}" alt="Photo ${index + 1}" 
+                                 class="w-full h-full object-cover transition-all"
+                                 style="filter: ${filterString}"
+                                 draggable="false"
+                            >
+                            <div class="absolute inset-0 pointer-events-none transition-all"
+                                 style="border: ${photo.borderWidth}px solid ${photo.borderColor};"></div>
+                        </div>
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            <span class="bg-black/50 text-white text-xs px-2 py-1 rounded-full">#${index + 1}</span>
+                        </div>
+                        ${index === selectedIndex ? `
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p class="text-white text-xs">Double-click to crop</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function selectPhoto(index) {
+            selectedIndex = index;
+            const photo = photos[index];
+
+            // Update all controls
+            document.getElementById('brightness').value = photo.filters.brightness;
+            document.getElementById('brightnessVal').textContent = photo.filters.brightness + '%';
+            document.getElementById('contrast').value = photo.filters.contrast;
+            document.getElementById('contrastVal').textContent = photo.filters.contrast + '%';
+            document.getElementById('saturation').value = photo.filters.saturation;
+            document.getElementById('saturationVal').textContent = photo.filters.saturation + '%';
+            document.getElementById('blur').value = photo.filters.blur;
+            document.getElementById('blurVal').textContent = photo.filters.blur + 'px';
+            document.getElementById('hue').value = photo.filters.hue;
+            document.getElementById('hueVal').textContent = photo.filters.hue + '°';
+            document.getElementById('sepia').value = photo.filters.sepia;
+            document.getElementById('sepiaVal').textContent = photo.filters.sepia + '%';
+            document.getElementById('grayscale').value = photo.filters.grayscale;
+            document.getElementById('grayscaleVal').textContent = photo.filters.grayscale + '%';
+            document.getElementById('borderWidth').value = photo.borderWidth;
+            document.getElementById('borderVal').textContent = photo.borderWidth + 'px';
+
+            renderPhotos();
+        }
+
+        function navigatePhoto(direction) {
+            if (photos.length === 0) return;
+            selectedIndex = (selectedIndex + direction + photos.length) % photos.length;
+            selectPhoto(selectedIndex);
+        }
+
+        function updateButtons(enabled) {
+            const buttons = ['btnCrop', 'btnDuplicate', 'btnDelete', 'btnRotateLeft', 'btnRotateRight', 
+                           'btnFlipH', 'btnFlipV', 'btnResize', 'btnUndo', 'btnReset',
+                           'btnBgRemove', 'btnWhiteBg', 'btnBlueBg', 'btnRedBg', 'btnGreenBg', 
+                           'btnGenerate'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = !enabled || (id !== 'btnGenerate' && selectedIndex === -1);
+            });
+        }
+
+        // ==================== EDITING FUNCTIONS ====================
+
+        function duplicatePhoto() {
+            if (selectedIndex < 0) return;
+            const photo = photos[selectedIndex];
+            photos.push({ ...photo, src: photo.src });
+            originals.push(originals[selectedIndex]);
+            history.push([]);
+            selectedIndex = photos.length - 1;
+            renderPhotos();
+            showToast('Photo duplicated', 'success');
+        }
+
+        function deletePhoto() {
+            if (selectedIndex < 0) return;
+            photos.splice(selectedIndex, 1);
+            originals.splice(selectedIndex, 1);
+            history.splice(selectedIndex, 1);
+            selectedIndex = Math.min(selectedIndex, photos.length - 1);
+            renderPhotos();
+            showToast('Photo deleted', 'info');
+        }
+
+        function rotatePhoto(degrees) {
+            if (selectedIndex < 0) return;
+            saveToHistory();
+
+            const img = new Image();
+            img.src = photos[selectedIndex].src;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                if (degrees === 90 || degrees === -90) {
+                    canvas.width = img.height;
+                    canvas.height = img.width;
+                } else {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                }
+
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(degrees * Math.PI / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+                updatePhotoSrc(canvas.toDataURL());
+                showToast(`Rotated ${degrees > 0 ? 'right' : 'left'}`, 'success');
+            };
+        }
+
+        function flipPhoto(direction) {
+            if (selectedIndex < 0) return;
+            saveToHistory();
+
+            const img = new Image();
+            img.src = photos[selectedIndex].src;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+
+                if (direction === 'horizontal') {
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                } else {
+                    ctx.translate(0, canvas.height);
+                    ctx.scale(1, -1);
+                }
+
+                ctx.drawImage(img, 0, 0);
+                updatePhotoSrc(canvas.toDataURL());
+                showToast(`Flipped ${direction}`, 'success');
+            };
+        }
+
+        function updateAdjustment(type, value) {
+            if (selectedIndex < 0) return;
+
+            const displayValues = {
+                brightness: '%', contrast: '%', saturation: '%',
+                blur: 'px', hue: '°', sepia: '%', grayscale: '%'
+            };
+
+            document.getElementById(type + 'Val').textContent = value + displayValues[type];
+            photos[selectedIndex].filters[type] = parseFloat(value);
+            renderPhotos();
+        }
+
+        function updateBorder(value) {
+            if (selectedIndex < 0) return;
+            document.getElementById('borderVal').textContent = value + 'px';
+            photos[selectedIndex].borderWidth = parseInt(value);
+            renderPhotos();
+        }
+
+        function setBorderColor(color) {
+            borderColor = color;
+            if (selectedIndex >= 0) {
+                photos[selectedIndex].borderColor = color;
+                renderPhotos();
+            }
+        }
+
+        function addBackground(color) {
+            if (selectedIndex < 0) return;
+            saveToHistory();
+
+            const img = new Image();
+            img.src = photos[selectedIndex].src;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = color;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+
+                updatePhotoSrc(canvas.toDataURL());
+                showToast('Background changed', 'success');
+            };
+        }
+
+        function resetPhoto() {
+            if (selectedIndex < 0) return;
+            saveToHistory();
+
+            photos[selectedIndex].src = originals[selectedIndex];
+            photos[selectedIndex].filters = { brightness: 100, contrast: 100, saturation: 100, blur: 0, hue: 0, sepia: 0, grayscale: 0 };
+            photos[selectedIndex].borderWidth = 3;
+            photos[selectedIndex].borderColor = '#000000';
+
+            selectPhoto(selectedIndex);
+            showToast('Photo reset to original', 'info');
+        }
+
+        function undo() {
+            if (selectedIndex < 0 || history[selectedIndex].length === 0) return;
+
+            const previous = history[selectedIndex].pop();
+            photos[selectedIndex].src = previous;
+            renderPhotos();
+            showToast('Undo successful', 'info');
+        }
+
+        function saveToHistory() {
+            if (selectedIndex < 0) return;
+            history[selectedIndex].push(photos[selectedIndex].src);
+            if (history[selectedIndex].length > 10) history[selectedIndex].shift();
+        }
+
+        function updatePhotoSrc(newSrc) {
+            if (selectedIndex < 0) return;
+            photos[selectedIndex].src = newSrc;
+            renderPhotos();
+        }
+
+        // ==================== CROP FUNCTIONS ====================
+
+        function openCropModal(index) {
+            if (index !== undefined) selectedIndex = index;
+            if (selectedIndex < 0) return;
+
+            const modal = document.getElementById('cropModal');
+            const image = document.getElementById('cropImage');
+            image.src = photos[selectedIndex].src;
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            if (cropper) cropper.destroy();
+
+            cropper = new Cropper(image, {
+                viewMode: 1,
+                dragMode: 'crop',
+                aspectRatio: NaN,
+                autoCropArea: 0.8,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: true,
+                background: true,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: true,
+                minContainerWidth: 200,
+                minContainerHeight: 200,
+                ready() {
+                    document.getElementById('cropZoom').value = 1;
+                }
+            });
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.add('hidden');
+            document.body.style.overflow = '';
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+        }
+
+        function setCropAspect(ratio) {
+            if (cropper) {
+                cropper.setAspectRatio(parseFloat(ratio));
+            }
+        }
+
+        function applyCrop() {
+            if (!cropper || selectedIndex < 0) return;
+            saveToHistory();
+
+            const canvas = cropper.getCroppedCanvas({
+                fillColor: '#fff',
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            });
+
+            updatePhotoSrc(canvas.toDataURL('image/png'));
+            closeCropModal();
+            showToast('Photo cropped successfully', 'success');
+        }
+
+        // ==================== RESIZE FUNCTIONS ====================
+
+        function openResizeModal() {
+            if (selectedIndex < 0) return;
+            const photo = photos[selectedIndex];
+            document.getElementById('originalSize').textContent = `${photo.width} × ${photo.height}px`;
+            document.getElementById('resizeWidth').value = photo.width;
+            document.getElementById('resizeHeight').value = photo.height;
+            document.getElementById('resizeModal').classList.remove('hidden');
+        }
+
+        function closeResizeModal() {
+            document.getElementById('resizeModal').classList.add('hidden');
+        }
+
+        function applyResize() {
+            if (selectedIndex < 0) return;
+            saveToHistory();
+
+            const width = parseInt(document.getElementById('resizeWidth').value);
+            const height = parseInt(document.getElementById('resizeHeight').value);
+            const maintainAspect = document.getElementById('maintainAspect').checked;
+
+            if (!width || !height) {
+                showToast('Please enter valid dimensions', 'error');
+                return;
+            }
+
+            const img = new Image();
+            img.src = photos[selectedIndex].src;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+
+                updatePhotoSrc(canvas.toDataURL());
+                photos[selectedIndex].width = width;
+                photos[selectedIndex].height = height;
+                closeResizeModal();
+                showToast(`Resized to ${width}×${height}`, 'success');
+            };
+        }
+
+        // ==================== BACKGROUND REMOVAL ====================
+
+        function openBgRemove() {
+            if (selectedIndex < 0) return;
+            const apiKey = document.getElementById('removeBgKey').value.trim();
+            if (!apiKey) {
+                showToast('Please enter your remove.bg API key', 'error');
+                document.getElementById('removeBgKey').focus();
+                return;
+            }
+            document.getElementById('bgModal').classList.remove('hidden');
+        }
+
+        function closeBgModal() {
+            document.getElementById('bgModal').classList.add('hidden');
+        }
+
+        async function removeBg(bgColor) {
+            if (selectedIndex < 0) return;
+
+            const apiKey = document.getElementById('removeBgKey').value.trim();
+            closeBgModal();
+            showToast('Processing background removal...', 'info');
+
+            try {
+                const src = photos[selectedIndex].src;
+                const response = await fetch(src);
+                const blob = await response.blob();
+
+                const formData = new FormData();
+                formData.append('image_file', blob);
+                formData.append('size', 'auto');
+
+                const result = await fetch('https://api.remove.bg/v1.0/removebg', {
+                    method: 'POST',
+                    headers: { 'X-Api-Key': apiKey },
+                    body: formData
+                });
+
+                if (!result.ok) throw new Error('API request failed');
+
+                const resultBlob = await result.blob();
+                const resultUrl = URL.createObjectURL(resultBlob);
+
+                const img = new Image();
+                img.src = resultUrl;
+                img.onload = () => {
+                    saveToHistory();
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+
+                    if (bgColor !== 'transparent') {
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+                    ctx.drawImage(img, 0, 0);
+
+                    updatePhotoSrc(canvas.toDataURL());
+                    showToast('Background removed successfully', 'success');
+                };
+            } catch (error) {
+                showToast('Background removal failed: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== PDF GENERATION ====================
+
+        async function generatePDF() {
+            if (photos.length === 0) {
+                showToast('No photos to generate PDF', 'error');
+                return;
+            }
+
+            showToast('Generating PDF...', 'info');
+
+            const { jsPDF } = window.jspdf;
+            const paper = document.getElementById('paperSize').value;
+            const layout = document.getElementById('layoutMode').value;
+            const dpi = parseInt(document.getElementById('dpiQuality').value);
+
+            const pdf = new jsPDF({ 
+                unit: 'mm', 
+                format: paper,
+                compress: true
+            });
+
+            const size = document.getElementById('photoSize').value;
+            const [targetW, targetH] = size.split('x').map(Number);
+
+            const gap = 2;
+            const margin = 10;
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+
+            let cols, rows;
+
+            switch(layout) {
+                case 'single': cols = 1; rows = 1; break;
+                case 'strip': cols = 1; rows = Math.floor((pageH - 2 * margin) / (targetH + gap)); break;
+                case '2x2': cols = 2; rows = 2; break;
+                case '3x3': cols = 3; rows = 3; break;
+                default:
+                    cols = Math.floor((pageW - 2 * margin) / (targetW + gap));
+                    rows = Math.floor((pageH - 2 * margin) / (targetH + gap));
+            }
+
+            let x = margin + (pageW - 2 * margin - (cols * targetW + (cols - 1) * gap)) / 2;
+            let y = margin;
+            let colCount = 0;
+            let rowCount = 0;
+
+            for (let i = 0; i < photos.length; i++) {
+                const photo = photos[i];
+
+                const canvas = await renderPhotoToCanvas(photo, dpi);
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+                pdf.addImage(imgData, 'JPEG', x, y, targetW, targetH);
+
+                colCount++;
+                x += targetW + gap;
+
+                if (colCount >= cols) {
+                    colCount = 0;
+                    x = margin + (pageW - 2 * margin - (cols * targetW + (cols - 1) * gap)) / 2;
+                    y += targetH + gap;
+                    rowCount++;
+
+                    if (rowCount >= rows && i < photos.length - 1) {
+                        pdf.addPage();
+                        x = margin + (pageW - 2 * margin - (cols * targetW + (cols - 1) * gap)) / 2;
+                        y = margin;
+                        rowCount = 0;
+                    }
+                }
+            }
+
+            pdf.save(`passport_photos_${new Date().getTime()}.pdf`);
+            showToast('PDF generated successfully!', 'success');
+        }
+
+        function renderPhotoToCanvas(photo, dpi) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = dpi / 25.4;
+                    canvas.width = 35 * scale;
+                    canvas.height = 45 * scale;
+                    const ctx = canvas.getContext('2d');
+
+                    // Apply border
+                    if (photo.borderWidth > 0) {
+                        ctx.fillStyle = photo.borderColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+
+                    // Calculate inner dimensions
+                    const borderScale = photo.borderWidth / 25.4 * dpi;
+                    const innerW = canvas.width - 2 * borderScale;
+                    const innerH = canvas.height - 2 * borderScale;
+
+                    // Apply filters
+                    ctx.filter = `brightness(${photo.filters.brightness}%) contrast(${photo.filters.contrast}%) saturate(${photo.filters.saturation}%) blur(${photo.filters.blur}px) hue-rotate(${photo.filters.hue}deg) sepia(${photo.filters.sepia}%) grayscale(${photo.filters.grayscale}%)`;
+
+                    // Draw image centered
+                    const ratio = Math.min(innerW / img.width, innerH / img.height);
+                    const drawW = img.width * ratio;
+                    const drawH = img.height * ratio;
+                    const drawX = (canvas.width - drawW) / 2;
+                    const drawY = (canvas.height - drawH) / 2;
+
+                    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                    resolve(canvas);
+                };
+                img.src = photo.src;
+            });
+        }
+
+        // ==================== UI FUNCTIONS ====================
+
+        function showShortcuts() {
+            document.getElementById('shortcutsModal').classList.remove('hidden');
+        }
+
+        function closeShortcuts() {
+            document.getElementById('shortcutsModal').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
+            const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+
+            toast.className = `toast ${colors[type]} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 min-w-[250px]`;
+            toast.innerHTML = `<i class="fas ${icons[type]}"></i><span class="font-medium text-sm">${message}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Close modals on outside click
+        window.onclick = function(event) {
+            if (event.target.id === 'cropModal') closeCropModal();
+            if (event.target.id === 'bgModal') closeBgModal();
+            if (event.target.id === 'shortcutsModal') closeShortcuts();
+            if (event.target.id === 'resizeModal') closeResizeModal();
+        }
+    </script>
+</body>
+</html>
