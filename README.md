@@ -1,3 +1,16 @@
+<<div class="flex items-center gap-3">
+			<div class="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
+				<img
+            src="https://avatars.githubusercontent.com/u/41312645?s=400&u=44b9adc7360f59bf6b1b5dd61bcaafbfb0e92164&v=4"
+            alt="Avatar"
+            class="w-full h-full object-cover"
+				/>
+			</div>
+		<div>
+        <h1 class="text-xl font-bold text-gray-800">GWP Automation</h1>
+        <p class="text-xs text-gray-500">Professional Passport Photo Editor</p>
+		</div>
+			</div>
 <h1 align="center">
   <img src="https://img.shields.io/badge/GWP%20Automation-v3.0.0-3b82f6?style=for-the-badge&logo=appveyor" alt="Version">
   <br>
@@ -205,3 +218,8 @@ Font Awesome - Icons
 <p align="center">
   <a href="#top">⬆ Back to Top</a>
 </p>
+
+
+
+
+
