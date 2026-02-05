@@ -11,6 +11,30 @@
         <p class="text-xs text-gray-500">Professional Passport Photo Editor</p>
 		</div>
 			</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <a href="https://wa.me/880151834473" target="_blank" class="contact-icon bg-green-600 hover:bg-green-500 rounded-xl p-4 text-white">
+                        <i class="fab fa-whatsapp text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">WhatsApp</p>
+                        <p class="text-xs opacity-80">01518344736</p>
+                    </a>
+                    <a href="im:0151834473" class="contact-icon bg-blue-600 hover:bg-blue-500 rounded-xl p-4 text-white">
+                        <i class="fas fa-comment-dots text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">IMO</p>
+                        <p class="text-xs opacity-80">01518344736</p>
+                    </a>
+                    <a href="mailto:gwpautomation@gmail.com" class="contact-icon bg-red-600 hover:bg-red-500 rounded-xl p-4 text-white">
+                        <i class="fas fa-envelope text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">Email</p>
+                        <p class="text-xs opacity-80">gwpautomation@gmail.com</p>
+                    </a>
+                    <a href="https://facebook.com/gwpautomation" target="_blank" class="contact-icon bg-blue-800 hover:bg-blue-700 rounded-xl p-4 text-white">
+                        <i class="fab fa-facebook-f text-3xl mb-2"></i>
+                        <p class="text-sm font-medium">Facebook</p>
+                        <p class="text-xs opacity-80">@gwpautomation</p>
+                    </a>
+                </div>
+			
 <h1 align="center">
   <img src="https://img.shields.io/badge/GWP%20Automation-v3.0.0-3b82f6?style=for-the-badge&logo=appveyor" alt="Version">
   <br>
